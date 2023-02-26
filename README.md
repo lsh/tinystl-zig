@@ -11,11 +11,11 @@ pub fn main() !void {
   var allocator = std.heap.page_allocator;
   var file = try std.fs.cwd().openFile("my_mesh.stl", .{});
   defer file.close();
-  var data = try StlData.readFromFile(&file, &allocator, .{});
+  var data = try StlData.readFromFile(file, &allocator, .{});
   defer data.deinit();
 
   var out_file = try std.fs.cwd().createFile("my_mesh_output.stl", .{});
   defer out_file.close();
-  try data.writeBinaryFile(&file, .{});
+  try data.writeBinaryFile(file, .{});
 }
  ```
