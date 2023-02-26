@@ -19,12 +19,12 @@ const testing = std.testing;
 //   var allocator = std.heap.page_allocator;
 //   var file = try std.fs.cwd().openFile("my_mesh.stl", .{});
 //   defer file.close();
-//   var data = try StlData.readFromFile(&file, &allocator, .{});
+//   var data = try StlData.readFromFile(file, &allocator, .{});
 //   defer data.deinit();
 
 //   var out_file = try std.fs.cwd().createFile("my_mesh_output.stl", .{});
 //   defer out_file.close();
-//   try data.writeBinaryFile(&file, .{});
+//   try data.writeBinaryFile(file, .{});
 // }
 //  ```
 
@@ -246,10 +246,10 @@ pub const StlData = struct {
     }
 
     /// Creates and populates a ``StlData`` from a file path.
-    pub fn readFromFile(file: *std.fs.File, allocator: *Allocator, opts: StlReadOpts) Error!StlData {
-        var buf_reader = std.io.bufferedReader(file.*.reader());
+    pub fn readFromFile(file: std.fs.File, allocator: *Allocator, opts: StlReadOpts) Error!StlData {
+        var buf_reader = std.io.bufferedReader(file.reader());
         var reader = buf_reader.reader();
-        return fromReader(&reader, allocator, opts);
+        return fromReader(reader, allocator, opts);
     }
 
     /// Constructs `StlData` from a struct that conforms to the `Reader` interface.
@@ -257,7 +257,7 @@ pub const StlData = struct {
         var data = StlData.init(allocator);
 
         // Get the first line to check if ascii or binary
-        var peek_stream = std.io.peekStream(5, reader.*);
+        var peek_stream = std.io.peekStream(5, reader);
         var peek_reader = peek_stream.reader();
         var buf: [5]u8 = undefined;
         var n = peek_reader.read(&buf) catch {
@@ -284,10 +284,10 @@ pub const StlData = struct {
     }
     /// Write the contents of a ``StlData`` to a file using the ASCII specification.
     /// Will truncate the path if it does not exist by default
-    pub fn writeAsciiFile(self: *StlData, file: *std.fs.File, opts: StlWriteOpts) Error!void {
-        var buf_writer = std.io.bufferedWriter(file.*.writer());
+    pub fn writeAsciiFile(self: *StlData, file: std.fs.File, opts: StlWriteOpts) Error!void {
+        var buf_writer = std.io.bufferedWriter(file.writer());
         var writer = buf_writer.writer();
-        try self.writeAscii(&writer, opts);
+        try self.writeAscii(writer, opts);
         buf_writer.flush() catch {
             return Error.Write;
         };
@@ -295,10 +295,10 @@ pub const StlData = struct {
 
     /// Write the contents of a ``StlData`` to a file using the ASCII specification.
     /// Will truncate the path if it does not exist by default
-    pub fn writeBinaryFile(self: *StlData, file: *std.fs.File, opts: StlWriteOpts) Error!void {
-        var buf_writer = std.io.bufferedWriter(file.*.writer());
+    pub fn writeBinaryFile(self: *StlData, file: std.fs.File, opts: StlWriteOpts) Error!void {
+        var buf_writer = std.io.bufferedWriter(file.writer());
         var writer = buf_writer.writer();
-        try self.writeBinary(&writer, opts);
+        try self.writeBinary(writer, opts);
         buf_writer.flush() catch {
             return Error.Write;
         };
@@ -565,7 +565,7 @@ test "minimal ascii file" {
     var file = try std.fs.cwd().openFile("testdata/simple_ascii.stl", .{});
     defer file.close();
 
-    var res = try StlData.readFromFile(&file, &allocator, .{});
+    var res = try StlData.readFromFile(file, &allocator, .{});
     defer res.deinit();
     try testing.expectEqualStrings("minimal", res.name.?);
     try testing.expectEqual(Encoding.ascii, res.encoding.?);
@@ -583,7 +583,7 @@ test "ascii file with creative white space" {
     var file = try std.fs.cwd().openFile("testdata/crazy_whitespace_ascii.stl", .{});
     defer file.close();
 
-    var res = try StlData.readFromFile(&file, &allocator, .{});
+    var res = try StlData.readFromFile(file, &allocator, .{});
     defer res.deinit();
     try testing.expectEqualStrings("min \t imal", res.name.?);
     try testing.expectEqual(Encoding.ascii, res.encoding.?);
@@ -601,7 +601,7 @@ test "small ascii file" {
     var file = try std.fs.cwd().openFile("testdata/half_donut_ascii.stl", .{});
     defer file.close();
 
-    var res = try StlData.readFromFile(&file, &allocator, .{});
+    var res = try StlData.readFromFile(file, &allocator, .{});
     defer res.deinit();
     try testing.expectEqualStrings("Half Donut", res.name.?);
     try testing.expectEqual(Encoding.ascii, res.encoding.?);
@@ -615,7 +615,7 @@ test "binary file" {
     var file = try std.fs.cwd().openFile("testdata/stencil_binary.stl", .{});
     defer file.close();
 
-    var res = try StlData.readFromFile(&file, &allocator, .{});
+    var res = try StlData.readFromFile(file, &allocator, .{});
     defer res.deinit();
     try testing.expect(res.name == null);
     try testing.expectEqual(Encoding.binary, res.encoding.?);
@@ -629,7 +629,7 @@ test "binary freecad" {
     var file = try std.fs.cwd().openFile("testdata/box_freecad_binary.stl", .{});
     defer file.close();
 
-    var res = try StlData.readFromFile(&file, &allocator, .{});
+    var res = try StlData.readFromFile(file, &allocator, .{});
     defer res.deinit();
     try testing.expect(res.name == null);
     try testing.expectEqual(Encoding.binary, res.encoding.?);
@@ -645,7 +645,7 @@ test "meshlab ascii" {
     var file = try std.fs.cwd().openFile("testdata/box_meshlab_ascii.stl", .{});
     defer file.close();
 
-    var res = try StlData.readFromFile(&file, &allocator, .{});
+    var res = try StlData.readFromFile(file, &allocator, .{});
     defer res.deinit();
     try testing.expectEqualStrings("STL generated by MeshLab", res.name.?);
     try testing.expectEqual(Encoding.ascii, res.encoding.?);
@@ -661,7 +661,7 @@ test "utf-8 file name" {
     var file = try std.fs.cwd().openFile("testdata/简化字.stl", .{});
     defer file.close();
 
-    var res = try StlData.readFromFile(&file, &allocator, .{});
+    var res = try StlData.readFromFile(file, &allocator, .{});
     defer res.deinit();
     try testing.expect(res.triangles.items.len == 1);
 }
@@ -672,7 +672,7 @@ test "sphere" {
     defer file.close();
 
     var reader = file.reader();
-    var data = try StlData.fromReader(&reader, &allocator, .{ .force_normals = true });
+    var data = try StlData.fromReader(reader, &allocator, .{ .force_normals = true });
     defer data.deinit();
 
     try testing.expect(data.triangles.items.len == 1360);
@@ -708,7 +708,7 @@ test "incomplete vertex" {
     var file = try std.fs.cwd().openFile("testdata/incomplete_vertex_ascii.stl", .{});
     defer file.close();
 
-    try testing.expectError(Error.Parse, StlData.readFromFile(&file, &allocator, .{}));
+    try testing.expectError(Error.Parse, StlData.readFromFile(file, &allocator, .{}));
 }
 
 test "incomplete normal" {
@@ -716,7 +716,7 @@ test "incomplete normal" {
     var file = try std.fs.cwd().openFile("testdata/incomplete_normal_ascii.stl", .{});
     defer file.close();
 
-    try testing.expectError(Error.Parse, StlData.readFromFile(&file, &allocator, .{}));
+    try testing.expectError(Error.Parse, StlData.readFromFile(file, &allocator, .{}));
 }
 
 test "empty file" {
@@ -724,7 +724,7 @@ test "empty file" {
     var file = try std.fs.cwd().openFile("testdata/empty_file.stl", .{});
     defer file.close();
 
-    try testing.expectError(Error.MissingData, StlData.readFromFile(&file, &allocator, .{}));
+    try testing.expectError(Error.MissingData, StlData.readFromFile(file, &allocator, .{}));
 }
 
 test "incomplete binary" {
@@ -732,7 +732,7 @@ test "incomplete binary" {
     var file = try std.fs.cwd().openFile("testdata/incomplete_binary.stl", .{});
     defer file.close();
 
-    try testing.expectError(Error.MissingData, StlData.readFromFile(&file, &allocator, .{}));
+    try testing.expectError(Error.MissingData, StlData.readFromFile(file, &allocator, .{}));
 }
 
 test "simple writer" {
@@ -740,7 +740,7 @@ test "simple writer" {
     var file = try std.fs.cwd().openFile("testdata/box_meshlab_ascii.stl", .{});
     defer file.close();
 
-    var res = try StlData.readFromFile(&file, &allocator, .{});
+    var res = try StlData.readFromFile(file, &allocator, .{});
     defer res.deinit();
 
     var tmp = testing.tmpDir(.{});
@@ -748,11 +748,11 @@ test "simple writer" {
 
     var tmp_binary = try tmp.dir.createFile("test_binary.stl", .{});
     defer tmp_binary.close();
-    try res.writeBinaryFile(&tmp_binary, .{});
+    try res.writeBinaryFile(tmp_binary, .{});
 
     var tmp_ascii = try tmp.dir.createFile("test_ascii.stl", .{});
     defer tmp_ascii.close();
-    try res.writeAsciiFile(&tmp_ascii, .{});
+    try res.writeAsciiFile(tmp_ascii, .{});
 }
 
 test "nulled normals" {
@@ -760,7 +760,7 @@ test "nulled normals" {
     var file = try std.fs.cwd().openFile("testdata/box_meshlab_ascii.stl", .{});
     defer file.close();
 
-    var res = try StlData.readFromFile(&file, &allocator, .{});
+    var res = try StlData.readFromFile(file, &allocator, .{});
     defer res.deinit();
 
     var tmp = testing.tmpDir(.{});
@@ -768,11 +768,11 @@ test "nulled normals" {
 
     var tmp_binary = try tmp.dir.createFile("test_binary.stl", .{});
     defer tmp_binary.close();
-    try res.writeBinaryFile(&tmp_binary, .{ .nullify_normals = true });
+    try res.writeBinaryFile(tmp_binary, .{ .nullify_normals = true });
 
     var tmp_ascii = try tmp.dir.createFile("test_ascii.stl", .{});
     defer tmp_ascii.close();
-    try res.writeAsciiFile(&tmp_ascii, .{ .nullify_normals = true });
+    try res.writeAsciiFile(tmp_ascii, .{ .nullify_normals = true });
 }
 
 test "write buffer" {
@@ -780,11 +780,11 @@ test "write buffer" {
     var file = try std.fs.cwd().openFile("testdata/box_meshlab_ascii.stl", .{});
     defer file.close();
 
-    var res = try StlData.readFromFile(&file, &allocator, .{});
+    var res = try StlData.readFromFile(file, &allocator, .{});
     defer res.deinit();
     var arraylist = ArrayList(u8).init(allocator);
     var writer = arraylist.writer();
-    try res.writeBinary(&writer, .{});
+    try res.writeBinary(writer, .{});
     try testing.expect(arraylist.items.len == 80 + 4 + 12 * (12 * 4 + 2));
 }
 
@@ -793,20 +793,20 @@ test "full cycle" {
     var file = try std.fs.cwd().openFile("testdata/box_meshlab_ascii.stl", .{});
     defer file.close();
 
-    var res = try StlData.readFromFile(&file, &allocator, .{});
+    var res = try StlData.readFromFile(file, &allocator, .{});
     defer res.deinit();
 
     var tmp = testing.tmpDir(.{});
     defer tmp.cleanup();
 
     var tmp_binary = try tmp.dir.createFile("test_binary.stl", .{ .read = true });
-    try res.writeBinaryFile(&tmp_binary, .{});
+    try res.writeBinaryFile(tmp_binary, .{});
 
     var tmp_ascii = try tmp.dir.createFile("test_ascii.stl", .{ .read = true });
     var tmp_ascii_w = try tmp.dir.openFile("test_ascii.stl", .{ .mode = std.fs.File.OpenMode.read_write });
-    try res.writeAsciiFile(&tmp_ascii_w, .{});
+    try res.writeAsciiFile(tmp_ascii_w, .{});
 
-    var new_data = try StlData.readFromFile(&tmp_ascii, &allocator, .{});
+    var new_data = try StlData.readFromFile(tmp_ascii, &allocator, .{});
     defer new_data.deinit();
     try testing.expect(new_data.triangles.items.len == 12);
     try testing.expectEqual(Encoding.ascii, new_data.encoding.?);
