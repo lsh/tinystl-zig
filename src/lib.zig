@@ -43,27 +43,6 @@ const facet_binary_size = 50;
 
 const f32x3_size = @sizeOf(f32) * 3;
 
-// From https://github.com/cry-inc/microstl/blob/ec3868a14d8eff40f7945b39758edf623f609b6f/include/microstl.h#L177
-fn stringTrim(input: []const u8) []const u8 {
-    var index: usize = 0;
-    var input_size = input.len;
-    while (index < input_size and std.ascii.isWhitespace(input[index])) : (index += 1) {}
-
-    var rest = input[index..];
-    if (rest.len == 0) {
-        return rest;
-    }
-
-    index = rest.len - 1;
-    while (std.ascii.isWhitespace(rest[index])) : (index -= 1) {
-        if (index == 0) {
-            break;
-        }
-    }
-
-    return rest[0..(index + 1)];
-}
-
 // The binary STL format contains an 80 byte header.
 // It should *never* start with `b"solid"`.
 // For more information see the [Wikipedia page][https://en.wikipedia.org/wiki/STL_(file_format)#Binary_STL] on the format.
@@ -396,7 +375,7 @@ pub const StlData = struct {
                 if (active_solid or solid_count != 0) {
                     return Error.Unexpected;
                 }
-                var mesh_name = stringTrim(line["solid".len..]);
+                var mesh_name = std.mem.trim(u8, line["solid".len..], " \t\n\r");
                 active_solid = true;
                 self.name = self.allocator.alloc(u8, mesh_name.len) catch {
                     return Error.OutOfMemory;
