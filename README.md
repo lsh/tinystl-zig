@@ -9,13 +9,13 @@ const StlData = @include("stldata.zig").StlData;
 
 pub fn main() !void {
   var allocator = std.heap.page_allocator;
-  var file = std.fs.cwd().openFile("my_mesh.stl", .{});
+  var file = try std.fs.cwd().openFile("my_mesh.stl", .{});
   defer file.close();
-  var data = StlData.readFromFile(&file, &allocator, .{});
+  var data = try StlData.readFromFile(&file, &allocator, .{});
   defer data.deinit();
 
-  var out_file = std.fs.cwd().createFile("my_mesh_output.stl", .{});
+  var out_file = try std.fs.cwd().createFile("my_mesh_output.stl", .{});
   defer out_file.close();
-  data.writeBinaryFile(&file, .{});
+  try data.writeBinaryFile(&file, .{});
 }
  ```
